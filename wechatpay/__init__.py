@@ -1,4 +1,4 @@
-from .core import JSAPIPay, NativePay
+from .core import JSAPIPay, MWEBPay, NativePay
 
 
-__all__ = ['JSAPIPay', 'NativePay']
+__all__ = ['JSAPIPay', 'MWEBPay', 'NativePay']

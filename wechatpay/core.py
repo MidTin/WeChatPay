@@ -46,9 +46,17 @@ class BasePay:
             resp = requests.post(self.UNIFIED_ORDER_API_URL, data=payload)
             if resp.status_code != 200:
                 raise RequestPaymentFail(f'{resp.content}')
-            return xml_to_dict(resp.content)
+
+            ret = xml_to_dict(resp.content)
+            return self.after_pay(ret)
         except Exception as ex:
             raise RequestPaymentFail(f'{ex}')
+
+    def after_pay(self, ret):
+        if ret['return_code'] == 'FAIL' or ret['return_msg']['result_code'] == 'FAIL':
+            raise RequestPaymentFail(ret['return_msg'])
+
+        return ret
 
     def query(self, **kwargs):
         payload = self.make_query_params(**kwargs)
@@ -62,6 +70,18 @@ class BasePay:
             raise RequestQueryFail(f'{ex}')
 
 
+class MWEBPay:
+
+    TRADE_TYPE = 'MWEB'
+
+    def after_pay(self, ret):
+        return {
+            'trade_type': ret['trade_type'],
+            'prepay_id': ret['prepay_id'],
+            'mweb_url': ret['mweb_url'],
+        }
+
+
 class JSAPIPay:
 
     TRADE_TYPE = 'JSAPI'
@@ -69,6 +89,13 @@ class JSAPIPay:
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._creation_parameters_cls.openid = required
+
+    def after_pay(self, ret):
+        return {
+            'trade_type': ret['trade_type'],
+            'prepay_id': ret['prepay_id'],
+            'code_url': ret.get('code_url'),
+        }
 
 
 class NativePay:
@@ -78,3 +105,10 @@ class NativePay:
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._creation_parameters_cls.product_id = required
+
+    def after_pay(self, ret):
+        return {
+            'trade_type': ret['trade_type'],
+            'prepay_id': ret['prepay_id'],
+            'code_url': ret.get('code_url'),
+        }
