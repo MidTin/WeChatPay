@@ -44,7 +44,6 @@ class BasePay:
             out_trade_no=trade_no, total_fee=total_fee,
             spbill_create_ip=client_ip, **kwargs)
 
-        print(payload)
         try:
             resp = requests.post(self.UNIFIED_ORDER_API_URL, data=payload)
             if resp.status_code != 200:
@@ -97,16 +96,16 @@ class JSAPIPay(BasePay):
         self._creation_parameters_cls.openid = required
 
     def after_pay(self, ret):
-        print(ret)
         data = {
             'package': f'prepay_id={ret["prepay_id"]}',
             'nonceStr': random_str(32),
             'appId': self.appid,
             'signType': 'MD5',
-            'timeStamp': int(time.time()),
+            'timeStamp': str(int(time.time())),
         }
         data['paySign'] = self._signature.sign(data)
-        return data
+        ret['pay_params'] = data
+        return ret
 
 
 class NativePay(BasePay):

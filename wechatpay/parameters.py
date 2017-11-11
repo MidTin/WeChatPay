@@ -36,7 +36,6 @@ class Parameters:
     def xml(self, signature):
         params = copy.deepcopy(self.params)
         params['sign'] = signature
-        print(params)
 
         root = ET.Element('xml')
         for key, value in params.items():
