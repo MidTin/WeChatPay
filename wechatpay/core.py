@@ -1,9 +1,11 @@
+import time
+
 import requests
 
 from .exceptions import RequestPaymentFail, RequestQueryFail
 from .parameters import OrderCreateParameters, OrderQueryParameters, required
 from .sign import Signature
-from .utils import xml_to_dict
+from .utils import random_str, xml_to_dict
 
 
 class BasePay:
@@ -14,9 +16,9 @@ class BasePay:
 
     def __init__(self, appid, app_key, mch_id):
         self.appid = appid
-        self.mch_id = mch_id
         self.app_key = app_key
         self._signature = Signature(app_key)
+        self.mch_id = mch_id
         self._creation_parameters_cls = OrderCreateParameters
         self._query_parameters_cls = OrderQueryParameters
 
@@ -42,12 +44,16 @@ class BasePay:
             out_trade_no=trade_no, total_fee=total_fee,
             spbill_create_ip=client_ip, **kwargs)
 
+        print(payload)
         try:
             resp = requests.post(self.UNIFIED_ORDER_API_URL, data=payload)
             if resp.status_code != 200:
                 raise RequestPaymentFail(f'{resp.content}')
 
             ret = xml_to_dict(resp.content)
+            if ret['return_code'] == 'FAIL':
+                raise RequestPaymentFail(ret)
+
             return self.after_pay(ret)
         except Exception as ex:
             raise RequestPaymentFail(f'{ex}')
@@ -70,7 +76,7 @@ class BasePay:
             raise RequestQueryFail(f'{ex}')
 
 
-class MWEBPay:
+class MWEBPay(BasePay):
 
     TRADE_TYPE = 'MWEB'
 
@@ -82,7 +88,7 @@ class MWEBPay:
         }
 
 
-class JSAPIPay:
+class JSAPIPay(BasePay):
 
     TRADE_TYPE = 'JSAPI'
 
@@ -91,14 +97,19 @@ class JSAPIPay:
         self._creation_parameters_cls.openid = required
 
     def after_pay(self, ret):
-        return {
-            'trade_type': ret['trade_type'],
-            'prepay_id': ret['prepay_id'],
-            'code_url': ret.get('code_url'),
+        print(ret)
+        data = {
+            'package': f'prepay_id={ret["prepay_id"]}',
+            'nonceStr': random_str(32),
+            'appId': self.appid,
+            'signType': 'MD5',
+            'timeStamp': int(time.time()),
         }
+        data['paySign'] = self._signature.sign(data)
+        return data
 
 
-class NativePay:
+class NativePay(BasePay):
 
     TRADE_TYPE = 'NATIVE'
 

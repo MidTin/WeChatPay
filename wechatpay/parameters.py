@@ -1,4 +1,5 @@
 import copy
+import inspect
 from xml.etree import ElementTree as ET
 
 from .exceptions import MissingRequiredParam
@@ -14,38 +15,41 @@ class Parameters:
     appid = required
     mch_id = required
     out_trade_no = required
+    sign = required
+    nonce_str = required
 
     def __init__(self, **kwargs):
+        kwargs['nonce_str'] = random_str()
+
         self.params = {}
-        for name, attr in self.__dict__:
-            if name.startswith('__') or callable(attr):
+        for name in dir(self):
+            attr = getattr(self, name, None)
+            if name.startswith('__') or inspect.ismethod(attr):
                 continue
 
-            if attr == required and not kwargs.get(name):
+            if name != 'sign' and attr == required and not kwargs.get(name):
                 raise MissingRequiredParam(
                     f'Value of {name} is required.')
 
             self.params[name] = kwargs.get(name)
 
-    @property
-    def nonce_str(self):
-        return random_str()
-
     def xml(self, signature):
         params = copy.deepcopy(self.params)
         params['sign'] = signature
+        print(params)
 
         root = ET.Element('xml')
-        for key, value in params:
+        for key, value in params.items():
             if value is None:
                 continue
 
             if getattr(self, key) != required:
                 value = f'<![CDATA[{value}]]>'
 
-            root.SubElement(value, key)
+            el = ET.SubElement(root, str(key))
+            el.text = str(value)
 
-        return ET.dump(root)
+        return ET.tostring(root, encoding='utf-8')
 
 
 class OrderCreateParameters(Parameters):

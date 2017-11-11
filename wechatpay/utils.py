@@ -14,8 +14,8 @@ def random_str(length=32):
         random.choices(f'{string.ascii_letters}{string.digits}', k=length))
 
 
-def xml_to_dict(value):
-    root = ET.fromstring(value)
+def xml_to_dict(xml: str):
+    root = ET.fromstring(xml)
     ret = {}
     for el in root.iter():
         if el.tag == 'xml':
